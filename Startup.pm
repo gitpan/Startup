@@ -1,5 +1,5 @@
 #
-# $Id: Startup.pm,v 0.20 1998/01/26 16:39:28 schwartz Exp $
+# $Id: Startup.pm,v 0.22 1998/02/21 17:39:21 schwartz Exp $
 #
 # Startup, module to write batch programs easier 
 #
@@ -14,7 +14,7 @@
 
 package Startup;
 use strict;
-my $VERSION=do{my@R=('$Revision: 0.20 $'=~/\d+/g);sprintf"%d."."%d"x$#R,@R};
+my $VERSION=do{my@R=('$Revision: 0.22 $'=~/\d+/g);sprintf"%d."."%d"x$#R,@R};
 
 use Cwd 'cwd';
 use Symbol;
@@ -74,15 +74,15 @@ sub prog_ver       { shift->_member("I_VER", @_) }
 sub go {
    my $S = shift;
 
-   return 1 if !@_;
-
    return $S->_fail ("No working function for files specified!") 
       if !$S->sub_files()
    ;
    if ($S->from_stdin) {
-      return $S->_fail ("No working function for stream input specified!") 
+      return $S->_fail ("Application didn't specify a stream input function!") 
          if !$S->sub_stream()
       ;
+   } else {
+      return 1 if !@_;
    }
 
    $S-> _cur_path(cwd());
@@ -195,6 +195,8 @@ sub error {
 ## --- Message ------------------------------------------------------------
 ##
 
+sub charset        { shift->_member("M_CHARSET", @_) }
+
 sub msg_autoindent { shift->_member("M_AUTO", @_) }
 sub msg_beauty     { shift->_member("M_BEAUTY", @_) }
 sub msg_indent     { shift->_member("M_INDENT", @_) }
@@ -208,6 +210,8 @@ sub _msg_finished  { shift->_member("M_FINISHED", @_) }
 
 sub msg_reset {
    my $S = shift;
+   $S->charset($ENV{LC_CTYPE}) if $ENV{LC_CTYPE};
+
    $S->msg_autoindent(1);
    $S->msg_beauty(1);
    $S->msg_indent(4);
@@ -217,7 +221,7 @@ sub msg_reset {
    $S->_msg_column(0);
    $S->_msg_continue(1);
    $S->_msg_finished(0);
-}
+$S}
 
 sub _print {
    my ($S, $txt) = @_;
@@ -670,7 +674,7 @@ __END__
 
 Startup - A program flow utility.
 
-I<ALPHA> version as of C<$Date: 1998/01/26 16:39:28 $>
+I<ALPHA> version as of C<$Date: 1998/02/21 17:39:21 $>
 
 =head1 SYNOPSIS
 
@@ -976,9 +980,16 @@ Appends a C<'!'> to message I<$str>.
 
 =over 4
 
+=item charset
+
+I<$charset_id> = I<$S> -> charset ($charset_id)
+
+Sets standard character set to I<$charset_id>. It defaults to $ENV{LC_CTYPE}.
+It's main purpose is for future releases.
+
 =item msg_reset
 
-C<1> = I<$S> -> msg_reset ()
+I<$S> = I<$S> -> msg_reset ()
 
 Resets message variables to default values. You will call this normally
 always when starting a new work a la: 'Processing xyz'.
