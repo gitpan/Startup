@@ -4,7 +4,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile (
    "NAME"      => "Startup",
-   "VERSION"   => "0.102",
+   "VERSION"   => "0.103",
    "dist"      => {
       "COMPRESS" => "gzip", 
       "SUFFIX"   => "gz"

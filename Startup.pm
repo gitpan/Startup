@@ -1,5 +1,5 @@
 #
-# $Id: Startup.pm,v 0.22 1998/02/21 17:39:21 schwartz Exp $
+# $Id: Startup.pm,v 0.24 1998/04/28 00:38:41 schwartz Exp $
 #
 # Startup, module to write batch programs easier 
 #
@@ -14,7 +14,7 @@
 
 package Startup;
 use strict;
-my $VERSION=do{my@R=('$Revision: 0.22 $'=~/\d+/g);sprintf"%d."."%d"x$#R,@R};
+my $VERSION=do{my@R=('$Revision: 0.24 $'=~/\d+/g);sprintf"%d."."%d"x$#R,@R};
 
 use Cwd 'cwd';
 use Symbol;
@@ -33,6 +33,7 @@ sub new {
    $|=1;
    my $proto = shift;
    my $S = bless ({}, ref($proto) || $proto);
+   $S -> err_reset();
    $S -> msg_reset();
    $S -> msg_silent(0);
    $S -> forbid_logging;
@@ -94,7 +95,6 @@ sub go {
    return $S -> _fail () if !$S->_chdir ($S->_cur_path);
 
    if ($S->from_stdin) {
-      $S->msg_silent(1);
       $S->msg_error() if !&{$S->sub_stream}($S->dest_base);
    } else {
       for (@_) {
@@ -162,33 +162,75 @@ sub _do_work {
 ##
 ## --- Error --------------------------------------------------------------
 ##
+## Very basics. Once it will get worked out...
+##
 
-sub err_caller     { shift->_member("E_CALLER", @_) }
-sub _err_str       { shift->_member("E_STR", @_) }
-sub _err_num       { shift->_member("E_NUM", @_) }
-sub _err_info      { shift->_member("E_INFO", @_) }
-sub err_strpat     { shift->_member("E_STRPAT", @_) }
-sub err_infopat    { shift->_member("E_INFOPAT", @_) }
+sub _error { shift->_member("E_ERR", @_) }
+
+sub _err_member {
+   my ($S, $type) = (shift, shift);
+   my $Err = $S -> _err;
+   $Err -> {$type} = shift if @_;
+   $Err -> {$type};
+}
+
+sub err_caller { shift -> _err_member("CALLER", @_) }
+sub _err_str   { shift -> _err_member("STR", @_) }
+sub _err_num   { shift -> _err_member("NUM", @_) }
+sub _err_info  { shift -> _err_member("INFO", @_) }
+
+sub err_strpat     { shift -> _member("E_STRPAT", @_) }
+sub err_infopat    { shift -> _member("E_INFOPAT", @_) }
+
+sub err_prev       { shift -> _err_pop; 0 }
+
+sub err_reset {
+   my ($S) = @_;
+   $S -> _error ([]);
+}
+
+sub _err_pop {
+   my ($S) = @_;
+   pop (@{$S->_error});
+}
+
+sub _err_push {
+   my ($S, $errH) = @_;
+   push (@{$S->_error}, $errH);
+}
+
+sub _err {
+   my ($S) = @_;
+   $S->_error->[$#{$S->_error}];
+}
 
 sub err_str { 
    my ($S, $str) = @_;
-   $S->_err_str($str) if $str;
-   $S->gimmick($S->err_strpat);
+   $S -> error ($str) if $str;
+   $S -> gimmick ($S->err_strpat);
 }
 
-sub err_info {
-   my ($S, $info) = @_;
-   $S->_err_info($info) if $info;
-   $S->gimmick($S->err_infopat);
+sub err_info { 
+   my ($S, $str) = @_;
+   $S -> error ("", 0, $str) if $str;
+   $S -> gimmick ($S->err_infopat);
 }
-sub err_num { goto &_err_num }
+
+sub err_num { 
+   my ($S, $num) = @_;
+   $S -> error ("", $num) if $num;
+   $S -> _err_num;
+}
 
 sub error {
    my ($S, $str, $num, $long) = @_;
-   $S->err_caller ([caller()]);
-   $S->err_str    ($str);
-   $S->err_num    ($num);
-   $S->err_info   ($long);
+   my $Err = $S->_err || {};
+   $S -> _err_push ({
+      "CALLER" => [caller()],
+      "STR"    => $str  || $Err->{"STR"},
+      "NUM"    => $num  || $Err->{"NUM"},
+      "INFO"   => $long || $Err->{"INFO"},
+   });
 0}
 
 ##
@@ -674,7 +716,7 @@ __END__
 
 Startup - A program flow utility.
 
-I<ALPHA> version as of C<$Date: 1998/02/21 17:39:21 $>
+I<ALPHA> version as of C<$Date: 1998/04/28 00:38:41 $>
 
 =head1 SYNOPSIS
 
